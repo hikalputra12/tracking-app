@@ -168,10 +168,42 @@ export async function deleteJob(rowIndex: number): Promise<{ success: boolean; e
   }
 }
 
+export function sanitizeTransactions(txs: any[]): Transaction[] {
+  if (!Array.isArray(txs)) return [];
+  return txs
+    .filter(t => {
+      if (!t || !t.id) return false;
+      const idUpper = String(t.id).trim().toUpperCase();
+      // Filter out scorecards, formulas, and header row labels
+      if (
+        idUpper.includes('TOTAL') ||
+        idUpper.includes('TRANSAKSI') ||
+        idUpper.includes('ID') ||
+        idUpper === '1' ||
+        idUpper === '0' ||
+        idUpper === '-'
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .map(t => {
+      let nominal = Number(t.nominal);
+      if (isNaN(nominal) || nominal === 0) {
+        const cleaned = String(t.nominal || '').replace(/[^0-9]/g, '');
+        nominal = cleaned ? parseInt(cleaned, 10) : 0;
+      }
+      return {
+        ...t,
+        nominal
+      };
+    });
+}
+
 export async function fetchTransactions(): Promise<{ transactions: Transaction[]; isLive: boolean; error?: string }> {
   const settings = getSettings();
   if (!settings.webAppUrl) {
-    return { transactions: getCachedTransactions(), isLive: false };
+    return { transactions: sanitizeTransactions(getCachedTransactions()), isLive: false };
   }
 
   try {
@@ -183,13 +215,14 @@ export async function fetchTransactions(): Promise<{ transactions: Transaction[]
     const data: ApiResponse = await res.json();
 
     if (data.success && data.transactions) {
-      saveCachedTransactions(data.transactions);
-      return { transactions: data.transactions, isLive: true };
+      const sanitized = sanitizeTransactions(data.transactions);
+      saveCachedTransactions(sanitized);
+      return { transactions: sanitized, isLive: true };
     } else {
-      return { transactions: getCachedTransactions(), isLive: false, error: data.error };
+      return { transactions: sanitizeTransactions(getCachedTransactions()), isLive: false, error: data.error };
     }
   } catch (err: any) {
-    return { transactions: getCachedTransactions(), isLive: false, error: err.message };
+    return { transactions: sanitizeTransactions(getCachedTransactions()), isLive: false, error: err.message };
   }
 }
 

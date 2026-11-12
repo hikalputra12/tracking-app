@@ -194,14 +194,26 @@ function handleRequest(e) {
         for (var j = 0; j < data.length; j++) {
           var r = data[j];
           var txId = String(r[0] || "").trim();
-          if (txId) {
+          var idUpper = txId.toUpperCase();
+          var isIgnored = idUpper.indexOf("TOTAL") !== -1 || idUpper.indexOf("TRANSAKSI") !== -1 || idUpper.indexOf("ID") !== -1 || idUpper === "1" || idUpper === "0" || idUpper === "-";
+          
+          if (txId && !isIgnored) {
+            var rawNominal = r[4];
+            var parsedNominal = 0;
+            if (typeof rawNominal === "number") {
+              parsedNominal = rawNominal;
+            } else if (rawNominal) {
+              var cleanDigits = String(rawNominal).replace(/[^0-9]/g, "");
+              parsedNominal = cleanDigits ? parseInt(cleanDigits, 10) : 0;
+            }
+
             transactions.push({
               rowIndex: j + 8,
               id: txId,
               tanggal: formatDate(r[1]),
               tipe: String(r[2] || "").trim(), // Pemasukan, Pengeluaran, Transfer
               kategori: String(r[3] || "").trim(),
-              nominal: Number(r[4]) || 0,
+              nominal: parsedNominal,
               dariAkun: String(r[5] || "").trim(),
               keAkun: String(r[6] || "").trim(),
               catatan: String(r[7] || "").trim()
