@@ -7,7 +7,7 @@ const AUTH_KEY = 'trackhub_auth_session';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   pin: '123456',
-  webAppUrl: '',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbzCondqaZj9PZBCV_g9TZnMrIuFvpLlSdwg4tJaY_ldRE6D7CIBYdBJ5EH5KxsO5siS/exec',
   darkMode: false,
   spreadsheetId: '1SuemDrT6nbkoFR2fsMhP-ebHDj3F_pcvl3Wa-xqNMLA',
 };
