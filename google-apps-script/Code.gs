@@ -11,16 +11,16 @@
  */
 function getMasterPin() {
   var secretPin = PropertiesService.getScriptProperties().getProperty("MASTER_PIN");
-  return secretPin ? secretPin.trim() : "123456"; // Default jika belum diatur
+  return secretPin ? secretPin.trim() : "101412"; // Default fallback
 }
 
 /**
  * PANDUAN MENGATUR PIN RAHASIA:
  * Anda bisa menjalankan fungsi ini sekali di Apps Script untuk menyimpan PIN Anda secara aman:
- * Ganti "123456" dengan PIN 6 digit Anda, lalu pilih fungsi 'setupSecretPin' dan klik 'Run'.
+ * Ganti angka di bawah dengan PIN 6 digit Anda, lalu pilih fungsi 'setupSecretPin' dan klik 'Run'.
  */
 function setupSecretPin() {
-  PropertiesService.getScriptProperties().setProperty("MASTER_PIN", "123456");
+  PropertiesService.getScriptProperties().setProperty("MASTER_PIN", "101412");
   Logger.log("PIN Rahasia berhasil disimpan secara aman di Google Cloud Script Properties!");
 }
 
@@ -74,14 +74,14 @@ function handleRequest(e) {
       });
     }
 
-    // 2. GET JOBS (BACA DATA TAB 1 - Sheet1)
+    // 2. GET JOBS (TAB: job_application / Sheet1)
     if (action === "getJobs") {
-      var jobSheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0];
+      var jobSheet = getJobSheet(ss);
       var lastRow = jobSheet.getLastRow();
       
       var jobs = [];
       if (lastRow >= 8) {
-        // Data dimulai dari baris 8 (baris 7 adalah header)
+        // Data dimulai dari baris 8 (baris 7 adalah header tabel)
         var dataRange = jobSheet.getRange(8, 1, lastRow - 7, 13);
         var values = dataRange.getValues();
 
@@ -116,9 +116,9 @@ function handleRequest(e) {
       });
     }
 
-    // 3. ADD JOB (TAMBAH DATA KE Sheet1)
+    // 3. ADD JOB (TAMBAH DATA KE job_application)
     if (action === "addJob") {
-      var jobSheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0];
+      var jobSheet = getJobSheet(ss);
       var job = params.job || params;
 
       var newRow = [
@@ -149,7 +149,7 @@ function handleRequest(e) {
 
     // 4. UPDATE JOB (UPDATE STATUS / CATATAN)
     if (action === "updateJob") {
-      var jobSheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0];
+      var jobSheet = getJobSheet(ss);
       var rowIndex = parseInt(params.rowIndex, 10);
       var job = params.job || params;
 
@@ -173,7 +173,7 @@ function handleRequest(e) {
 
     // 5. DELETE JOB
     if (action === "deleteJob") {
-      var jobSheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0];
+      var jobSheet = getJobSheet(ss);
       var rowIndex = parseInt(params.rowIndex, 10);
       if (rowIndex && rowIndex >= 8) {
         jobSheet.deleteRow(rowIndex);
@@ -182,20 +182,21 @@ function handleRequest(e) {
       return createJsonResponse({ success: false, error: "Row index tidak ditemukan." });
     }
 
-    // 6. GET TRANSACTIONS (TAB KEUANGAN_TRANSAKSI)
+    // 6. GET TRANSACTIONS (TAB: Keuangan_Transaksi)
     if (action === "getTransactions") {
       var finSheet = getOrCreateFinanceSheet(ss);
       var lastRow = finSheet.getLastRow();
       var transactions = [];
 
-      if (lastRow >= 2) {
-        var data = finSheet.getRange(2, 1, lastRow - 1, 8).getValues();
+      if (lastRow >= 8) {
+        // Data dimulai dari baris 8 (baris 7 adalah header tabel)
+        var data = finSheet.getRange(8, 1, lastRow - 7, 8).getValues();
         for (var j = 0; j < data.length; j++) {
           var r = data[j];
           var txId = String(r[0] || "").trim();
           if (txId) {
             transactions.push({
-              rowIndex: j + 2,
+              rowIndex: j + 8,
               id: txId,
               tanggal: formatDate(r[1]),
               tipe: String(r[2] || "").trim(), // Pemasukan, Pengeluaran, Transfer
@@ -215,7 +216,7 @@ function handleRequest(e) {
       });
     }
 
-    // 7. ADD TRANSACTION
+    // 7. ADD TRANSACTION (TAMBAH DATA KE Keuangan_Transaksi)
     if (action === "addTransaction") {
       var finSheet = getOrCreateFinanceSheet(ss);
       var tx = params.transaction || params;
@@ -235,11 +236,13 @@ function handleRequest(e) {
       ];
 
       finSheet.appendRow(newRow);
+      var insertedTxRow = finSheet.getLastRow();
 
       return createJsonResponse({
         success: true,
         message: "Transaksi berhasil dicatat!",
-        id: txId
+        id: txId,
+        rowIndex: insertedTxRow
       });
     }
 
@@ -249,18 +252,18 @@ function handleRequest(e) {
       var idToDelete = String(params.id || "").trim();
       var rowIndex = parseInt(params.rowIndex, 10);
 
-      if (rowIndex && rowIndex >= 2) {
+      if (rowIndex && rowIndex >= 8) {
         finSheet.deleteRow(rowIndex);
         return createJsonResponse({ success: true, message: "Transaksi berhasil dihapus!" });
       }
 
       if (idToDelete) {
         var lastRow = finSheet.getLastRow();
-        if (lastRow >= 2) {
-          var ids = finSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        if (lastRow >= 8) {
+          var ids = finSheet.getRange(8, 1, lastRow - 7, 1).getValues();
           for (var k = 0; k < ids.length; k++) {
             if (String(ids[k][0]).trim() === idToDelete) {
-              finSheet.deleteRow(k + 2);
+              finSheet.deleteRow(k + 8);
               return createJsonResponse({ success: true, message: "Transaksi " + idToDelete + " dihapus!" });
             }
           }
@@ -283,16 +286,21 @@ function handleRequest(e) {
   }
 }
 
-// Helper: Tab Keuangan_Transaksi Otomatis Dibuat jika Belum Ada
+// Helper: Tab Job Seeker (Cari tab 'job_application', 'Sheet1', atau tab pertama)
+function getJobSheet(ss) {
+  return ss.getSheetByName("job_application") || ss.getSheetByName("Sheet1") || ss.getSheets()[0];
+}
+
+// Helper: Tab Keuangan_Transaksi
 function getOrCreateFinanceSheet(ss) {
-  var sheet = ss.getSheetByName("Keuangan_Transaksi");
+  var sheet = ss.getSheetByName("Keuangan_Transaksi") || ss.getSheetByName("keuangan transaksi");
   if (!sheet) {
     sheet = ss.insertSheet("Keuangan_Transaksi");
-    // Format Header Baris 1
+    // Format Header Baris 7 jika baru dibuat
     var headers = [["ID", "Tanggal", "Tipe", "Kategori", "Nominal", "Dari Akun", "Ke Akun", "Catatan"]];
-    sheet.getRange(1, 1, 1, 8).setValues(headers);
-    sheet.getRange(1, 1, 1, 8).setFontWeight("bold").setBackground("#f3f4f6");
-    sheet.setFrozenRows(1);
+    sheet.getRange(7, 1, 1, 8).setValues(headers);
+    sheet.getRange(7, 1, 1, 8).setFontWeight("bold").setBackground("#f3f4f6");
+    sheet.setFrozenRows(7);
   }
   return sheet;
 }
