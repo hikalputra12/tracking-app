@@ -76,17 +76,24 @@ export async function addJob(job: JobApplication): Promise<{ success: boolean; j
   }
 
   try {
-    const res = await fetch(settings.webAppUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' }, // Menggunakan text/plain mencegah CORS preflight issues di Google Apps Script
-      body: JSON.stringify({
-        action: 'addJob',
-        pin: settings.pin,
-        job
-      })
-    });
+    const targetUrl = new URL(settings.webAppUrl);
+    targetUrl.searchParams.set('action', 'addJob');
+    targetUrl.searchParams.set('pin', settings.pin);
+    if (job.companyName) targetUrl.searchParams.set('companyName', job.companyName);
+    if (job.jobTitle) targetUrl.searchParams.set('jobTitle', job.jobTitle);
+    if (job.jobLink) targetUrl.searchParams.set('jobLink', job.jobLink);
+    if (job.cvVersion) targetUrl.searchParams.set('cvVersion', job.cvVersion);
+    if (job.dateApplied) targetUrl.searchParams.set('dateApplied', job.dateApplied);
+    if (job.deadline) targetUrl.searchParams.set('deadline', job.deadline);
+    if (job.jobType) targetUrl.searchParams.set('jobType', job.jobType);
+    if (job.salary) targetUrl.searchParams.set('salary', job.salary);
+    if (job.contact) targetUrl.searchParams.set('contact', job.contact);
+    if (job.location) targetUrl.searchParams.set('location', job.location);
+    if (job.status) targetUrl.searchParams.set('status', job.status);
+    if (job.interviewDate) targetUrl.searchParams.set('interviewDate', job.interviewDate);
+    if (job.notes) targetUrl.searchParams.set('notes', job.notes);
 
+    const res = await fetch(targetUrl.toString(), { method: 'GET', mode: 'cors' });
     const data: ApiResponse = await res.json();
     if (data.success) {
       if (data.rowIndex) {
@@ -121,18 +128,20 @@ export async function updateJob(job: JobApplication): Promise<{ success: boolean
   }
 
   try {
-    const res = await fetch(settings.webAppUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'updateJob',
-        pin: settings.pin,
-        rowIndex: job.rowIndex,
-        job
-      })
-    });
+    const targetUrl = new URL(settings.webAppUrl);
+    targetUrl.searchParams.set('action', 'updateJob');
+    targetUrl.searchParams.set('pin', settings.pin);
+    if (job.rowIndex) targetUrl.searchParams.set('rowIndex', String(job.rowIndex));
+    if (job.companyName) targetUrl.searchParams.set('companyName', job.companyName);
+    if (job.jobTitle) targetUrl.searchParams.set('jobTitle', job.jobTitle);
+    if (job.status) targetUrl.searchParams.set('status', job.status);
+    if (job.salary) targetUrl.searchParams.set('salary', job.salary);
+    if (job.jobType) targetUrl.searchParams.set('jobType', job.jobType);
+    if (job.location) targetUrl.searchParams.set('location', job.location);
+    if (job.interviewDate) targetUrl.searchParams.set('interviewDate', job.interviewDate);
+    if (job.notes) targetUrl.searchParams.set('notes', job.notes);
 
+    const res = await fetch(targetUrl.toString(), { method: 'GET', mode: 'cors' });
     const data: ApiResponse = await res.json();
     return { success: !!data.success, error: data.error };
   } catch (err: any) {
@@ -151,16 +160,12 @@ export async function deleteJob(rowIndex: number): Promise<{ success: boolean; e
   }
 
   try {
-    const res = await fetch(settings.webAppUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'deleteJob',
-        pin: settings.pin,
-        rowIndex
-      })
-    });
+    const targetUrl = new URL(settings.webAppUrl);
+    targetUrl.searchParams.set('action', 'deleteJob');
+    targetUrl.searchParams.set('pin', settings.pin);
+    targetUrl.searchParams.set('rowIndex', String(rowIndex));
+
+    const res = await fetch(targetUrl.toString(), { method: 'GET', mode: 'cors' });
     const data: ApiResponse = await res.json();
     return { success: !!data.success, error: data.error };
   } catch (err: any) {
@@ -244,17 +249,18 @@ export async function addTransaction(tx: Omit<Transaction, 'id'> & { id?: string
   }
 
   try {
-    const res = await fetch(settings.webAppUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'addTransaction',
-        pin: settings.pin,
-        transaction: newTx
-      })
-    });
+    const targetUrl = new URL(settings.webAppUrl);
+    targetUrl.searchParams.set('action', 'addTransaction');
+    targetUrl.searchParams.set('pin', settings.pin);
+    targetUrl.searchParams.set('id', id);
+    targetUrl.searchParams.set('nominal', String(newTx.nominal));
+    targetUrl.searchParams.set('kategori', newTx.kategori);
+    targetUrl.searchParams.set('tipe', newTx.tipe);
+    targetUrl.searchParams.set('dariAkun', newTx.dariAkun);
+    targetUrl.searchParams.set('tanggal', newTx.tanggal);
+    if (newTx.catatan) targetUrl.searchParams.set('catatan', newTx.catatan);
 
+    const res = await fetch(targetUrl.toString(), { method: 'GET', mode: 'cors' });
     const data: ApiResponse = await res.json();
     return { success: !!data.success, transaction: newTx, error: data.error };
   } catch (err: any) {
@@ -277,18 +283,19 @@ export async function updateTransaction(tx: Transaction): Promise<{ success: boo
   }
 
   try {
-    const res = await fetch(settings.webAppUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'updateTransaction',
-        pin: settings.pin,
-        rowIndex: tx.rowIndex,
-        transaction: tx
-      })
-    });
+    const targetUrl = new URL(settings.webAppUrl);
+    targetUrl.searchParams.set('action', 'updateTransaction');
+    targetUrl.searchParams.set('pin', settings.pin);
+    targetUrl.searchParams.set('id', tx.id);
+    if (tx.rowIndex) targetUrl.searchParams.set('rowIndex', String(tx.rowIndex));
+    targetUrl.searchParams.set('nominal', String(tx.nominal));
+    targetUrl.searchParams.set('kategori', tx.kategori);
+    targetUrl.searchParams.set('tipe', tx.tipe);
+    targetUrl.searchParams.set('dariAkun', tx.dariAkun);
+    targetUrl.searchParams.set('tanggal', tx.tanggal);
+    if (tx.catatan) targetUrl.searchParams.set('catatan', tx.catatan);
 
+    const res = await fetch(targetUrl.toString(), { method: 'GET', mode: 'cors' });
     const data: ApiResponse = await res.json();
     return { success: !!data.success, error: data.error };
   } catch (err: any) {
@@ -307,17 +314,13 @@ export async function deleteTransaction(id: string, rowIndex?: number): Promise<
   }
 
   try {
-    const res = await fetch(settings.webAppUrl, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'deleteTransaction',
-        pin: settings.pin,
-        id,
-        rowIndex
-      })
-    });
+    const targetUrl = new URL(settings.webAppUrl);
+    targetUrl.searchParams.set('action', 'deleteTransaction');
+    targetUrl.searchParams.set('pin', settings.pin);
+    targetUrl.searchParams.set('id', id);
+    if (rowIndex) targetUrl.searchParams.set('rowIndex', String(rowIndex));
+
+    const res = await fetch(targetUrl.toString(), { method: 'GET', mode: 'cors' });
     const data: ApiResponse = await res.json();
     return { success: !!data.success, error: data.error };
   } catch (err: any) {

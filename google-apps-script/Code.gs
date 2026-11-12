@@ -11,7 +11,7 @@
  */
 function getMasterPin() {
   var secretPin = PropertiesService.getScriptProperties().getProperty("MASTER_PIN");
-  return secretPin ? secretPin.trim() : "101412"; // Default fallback
+  return secretPin ? secretPin.trim() : "123456"; // Default placeholder (ganti via setupSecretPin atau Script Properties)
 }
 
 /**
@@ -20,7 +20,7 @@ function getMasterPin() {
  * Ganti angka di bawah dengan PIN 6 digit Anda, lalu pilih fungsi 'setupSecretPin' dan klik 'Run'.
  */
 function setupSecretPin() {
-  PropertiesService.getScriptProperties().setProperty("MASTER_PIN", "101412");
+  PropertiesService.getScriptProperties().setProperty("MASTER_PIN", "123456");
   Logger.log("PIN Rahasia berhasil disimpan secara aman di Google Cloud Script Properties!");
 }
 
@@ -88,8 +88,10 @@ function handleRequest(e) {
         for (var i = 0; i < values.length; i++) {
           var row = values[i];
           var company = String(row[0] || "").trim();
-          // Hanya ambil jika nama perusahaan tidak kosong
-          if (company) {
+          var compUpper = company.toUpperCase();
+          var isIgnored = compUpper.indexOf("TOTAL") !== -1 || compUpper.indexOf("PERUSAHAAN") !== -1 || compUpper.indexOf("NAMA") !== -1 || compUpper === "1" || compUpper === "0" || compUpper === "-";
+          // Hanya ambil jika nama perusahaan tidak kosong dan bukan baris scorecard/header
+          if (company && !isIgnored) {
             jobs.push({
               rowIndex: i + 8,
               companyName: company,
@@ -233,18 +235,32 @@ function handleRequest(e) {
       var finSheet = getOrCreateFinanceSheet(ss);
       var tx = params.transaction || params;
 
-      var txId = tx.id || ("TX-" + Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyyMMdd-HHmmss"));
-      var nominal = Number(tx.nominal) || 0;
+      var txId = tx.id || params.id || ("TX-" + Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyyMMdd-HHmmss"));
+      var rawNom = tx.nominal !== undefined ? tx.nominal : params.nominal;
+      var nominal = 0;
+      if (typeof rawNom === "number") {
+        nominal = rawNom;
+      } else if (rawNom) {
+        var cleanDigits = String(rawNom).replace(/[^0-9]/g, "");
+        nominal = cleanDigits ? parseInt(cleanDigits, 10) : 0;
+      }
+
+      var tanggal = tx.tanggal || params.tanggal || Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd");
+      var tipe = tx.tipe || params.tipe || "Pengeluaran";
+      var kategori = tx.kategori || params.kategori || "Umum";
+      var dariAkun = tx.dariAkun || params.dariAkun || "Tunai (Cash)";
+      var keAkun = tx.keAkun !== undefined ? tx.keAkun : (params.keAkun || "-");
+      var catatan = tx.catatan !== undefined ? tx.catatan : (params.catatan || "");
 
       var newRow = [
         txId,
-        tx.tanggal || Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd"),
-        tx.tipe || "Pengeluaran",
-        tx.kategori || "Umum",
+        tanggal,
+        tipe,
+        kategori,
         nominal,
-        tx.dariAkun || "Cash",
-        tx.keAkun || "-",
-        tx.catatan || ""
+        dariAkun,
+        keAkun,
+        catatan
       ];
 
       finSheet.appendRow(newRow);
@@ -283,14 +299,29 @@ function handleRequest(e) {
         return createJsonResponse({ success: false, error: "Baris transaksi tidak ditemukan." });
       }
 
-      var nominal = Number(tx.nominal) || 0;
-      if (tx.tanggal !== undefined) finSheet.getRange(rowIndex, 2).setValue(tx.tanggal);
-      if (tx.tipe !== undefined) finSheet.getRange(rowIndex, 3).setValue(tx.tipe);
-      if (tx.kategori !== undefined) finSheet.getRange(rowIndex, 4).setValue(tx.kategori);
-      if (tx.nominal !== undefined) finSheet.getRange(rowIndex, 5).setValue(nominal);
-      if (tx.dariAkun !== undefined) finSheet.getRange(rowIndex, 6).setValue(tx.dariAkun);
-      if (tx.keAkun !== undefined) finSheet.getRange(rowIndex, 7).setValue(tx.keAkun || "-");
-      if (tx.catatan !== undefined) finSheet.getRange(rowIndex, 8).setValue(tx.catatan);
+      var rawNom = tx.nominal !== undefined ? tx.nominal : params.nominal;
+      var nominal = 0;
+      if (typeof rawNom === "number") {
+        nominal = rawNom;
+      } else if (rawNom) {
+        var cleanNom = String(rawNom).replace(/[^0-9]/g, "");
+        nominal = cleanNom ? parseInt(cleanNom, 10) : 0;
+      }
+
+      var tanggal = tx.tanggal || params.tanggal;
+      var tipe = tx.tipe || params.tipe;
+      var kategori = tx.kategori || params.kategori;
+      var dariAkun = tx.dariAkun || params.dariAkun;
+      var keAkun = tx.keAkun !== undefined ? tx.keAkun : params.keAkun;
+      var catatan = tx.catatan !== undefined ? tx.catatan : params.catatan;
+
+      if (tanggal !== undefined && tanggal !== "") finSheet.getRange(rowIndex, 2).setValue(tanggal);
+      if (tipe !== undefined && tipe !== "") finSheet.getRange(rowIndex, 3).setValue(tipe);
+      if (kategori !== undefined && kategori !== "") finSheet.getRange(rowIndex, 4).setValue(kategori);
+      if (rawNom !== undefined && rawNom !== "") finSheet.getRange(rowIndex, 5).setValue(nominal);
+      if (dariAkun !== undefined && dariAkun !== "") finSheet.getRange(rowIndex, 6).setValue(dariAkun);
+      if (keAkun !== undefined) finSheet.getRange(rowIndex, 7).setValue(keAkun || "-");
+      if (catatan !== undefined) finSheet.getRange(rowIndex, 8).setValue(catatan);
 
       return createJsonResponse({
         success: true,
