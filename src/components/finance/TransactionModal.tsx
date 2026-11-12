@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, TransactionType } from '../../types';
-import { X, Save, ArrowRightLeft, TrendingDown, TrendingUp, Sparkles } from 'lucide-react';
+import { X, Save, ArrowRightLeft, TrendingDown, TrendingUp, Sparkles, Trash2 } from 'lucide-react';
 
 interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialType?: TransactionType;
-  onSave: (tx: Omit<Transaction, 'id'> & { id?: string }) => Promise<void>;
+  transaction?: Transaction | null;
+  onSave: (tx: Omit<Transaction, 'id'> & { id?: string; rowIndex?: number }) => Promise<void>;
+  onDelete?: (id: string, rowIndex?: number) => Promise<void>;
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({
   isOpen,
   onClose,
   initialType = 'Pengeluaran',
-  onSave
+  transaction = null,
+  onSave,
+  onDelete
 }) => {
   const [tipe, setTipe] = useState<TransactionType>(initialType);
   const [nominalRaw, setNominalRaw] = useState<string>('');
@@ -25,17 +29,28 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setTipe(initialType);
-    if (initialType === 'Pemasukan') {
-      setKategori('Gaji / Honor');
-      setDariAkun('BCA');
+    if (transaction) {
+      setTipe(transaction.tipe || 'Pengeluaran');
+      setNominalRaw(String(transaction.nominal || ''));
+      setKategori(transaction.kategori || 'Makanan & Minuman');
+      setDariAkun(transaction.dariAkun || 'Tunai (Cash)');
+      setKeAkun(transaction.keAkun || 'BCA');
+      setTanggal(transaction.tanggal || new Date().toISOString().split('T')[0]);
+      setCatatan(transaction.catatan || '');
     } else {
-      setKategori('Makanan & Minuman');
-      setDariAkun('GoPay');
+      setTipe(initialType);
+      if (initialType === 'Pemasukan') {
+        setKategori('Gaji / Honor');
+        setDariAkun('BCA');
+      } else {
+        setKategori('Makanan & Minuman');
+        setDariAkun('GoPay');
+      }
+      setNominalRaw('');
+      setCatatan('');
+      setTanggal(new Date().toISOString().split('T')[0]);
     }
-    setNominalRaw('');
-    setCatatan('');
-  }, [initialType, isOpen]);
+  }, [transaction, initialType, isOpen]);
 
   if (!isOpen) return null;
 
@@ -62,7 +77,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const accounts = ['BCA', 'Mandiri', 'BRI', 'BNI', 'GoPay', 'OVO', 'ShopeePay', 'Dana', 'Tunai (Cash)'];
 
   const handleNominalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only numbers
     const val = e.target.value.replace(/\D/g, '');
     setNominalRaw(val);
   };
@@ -82,6 +96,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSave({
+        id: transaction?.id,
+        rowIndex: transaction?.rowIndex,
         tanggal,
         tipe,
         kategori: tipe === 'Transfer' ? 'Transfer Antar Dompet' : kategori,
@@ -98,6 +114,22 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (transaction?.id && onDelete) {
+      if (confirm(`Yakin ingin menghapus transaksi "${transaction.id}" (${transaction.kategori})?`)) {
+        setIsSubmitting(true);
+        try {
+          await onDelete(transaction.id, transaction.rowIndex);
+          onClose();
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    }
+  };
+
+  const isEditing = Boolean(transaction?.id);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs select-none">
       <div className="relative w-full max-w-md bg-white dark:bg-[#1f1f1f] border border-[#e9e9e7] dark:border-[#2f2f2f] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -106,17 +138,30 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-lg">💰</span>
             <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
-              Catat Transaksi Keuangan
+              {isEditing ? `Edit Transaksi (${transaction?.id})` : 'Catat Transaksi Keuangan'}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {isEditing && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                title="Hapus Transaksi"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Form */}
@@ -127,7 +172,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               type="button"
               onClick={() => {
                 setTipe('Pengeluaran');
-                setKategori('Makanan & Minuman');
+                if (!isEditing) setKategori('Makanan & Minuman');
               }}
               className={`py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
                 tipe === 'Pengeluaran'
@@ -143,7 +188,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               type="button"
               onClick={() => {
                 setTipe('Pemasukan');
-                setKategori('Gaji / Honor');
+                if (!isEditing) setKategori('Gaji / Honor');
               }}
               className={`py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
                 tipe === 'Pemasukan'
@@ -182,7 +227,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 type="text"
                 inputMode="numeric"
                 required
-                autoFocus
+                autoFocus={!isEditing}
                 placeholder="0"
                 value={formattedNominalDisplay}
                 onChange={handleNominalChange}
@@ -215,7 +260,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-neutral-600 dark:text-neutral-400 mb-1">
-                {tipe === 'Transfer' ? 'Dari Dompet/Akun' : 'Akun / Dompet'}
+                {tipe === 'Transfer' ? 'Dari Dompet/Akun' : 'Metode Pembayaran (Akun)'}
               </label>
               <select
                 value={dariAkun}
@@ -293,7 +338,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           {/* Auto ID Notice */}
           <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 dark:text-neutral-500 bg-neutral-50 dark:bg-neutral-800/50 p-2 rounded-lg">
             <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>ID Transaksi otomatis dibuat & disimpan ke tab <b>Keuangan_Transaksi</b></span>
+            <span>{isEditing ? `Mengedit baris Google Sheet untuk ${transaction?.id}` : 'ID Transaksi otomatis dibuat & disimpan ke tab Keuangan_Transaksi'}</span>
           </div>
 
           {/* Submit Buttons */}
@@ -312,7 +357,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 shadow transition-colors disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
-              <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}</span>
+              <span>{isSubmitting ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Simpan Transaksi'}</span>
             </button>
           </div>
         </form>

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Transaction, TransactionType } from '../../types';
-import { Search, Trash2, ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react';
+import { Transaction } from '../../types';
+import { Search, Trash2, ArrowRightLeft, TrendingDown, TrendingUp, Pencil } from 'lucide-react';
 
 interface TransactionTableProps {
   transactions: Transaction[];
+  onSelectTransaction?: (tx: Transaction) => void;
   onDeleteTransaction: (id: string, rowIndex?: number) => Promise<void>;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = ({
   transactions,
+  onSelectTransaction,
   onDeleteTransaction
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,9 +34,17 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     return matchSearch && matchType;
   });
 
-  const handleDelete = (tx: Transaction) => {
+  const handleDelete = (e: React.MouseEvent, tx: Transaction) => {
+    e.stopPropagation();
     if (confirm(`Hapus transaksi ${tx.id} (${tx.kategori} - ${formatRupiah(tx.nominal)})?`)) {
       onDeleteTransaction(tx.id, tx.rowIndex);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent, tx: Transaction) => {
+    e.stopPropagation();
+    if (onSelectTransaction) {
+      onSelectTransaction(tx);
     }
   };
 
@@ -97,9 +107,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 filtered.map((tx) => (
                   <tr
                     key={tx.id}
-                    className="hover:bg-neutral-50 dark:hover:bg-[#262626] transition-colors"
+                    onClick={() => onSelectTransaction && onSelectTransaction(tx)}
+                    className="hover:bg-neutral-50 dark:hover:bg-[#262626] transition-colors cursor-pointer group"
                   >
-                    <td className="py-2.5 px-3 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-neutral-400 dark:text-neutral-500 group-hover:text-blue-500 transition-colors">
                       {tx.id}
                     </td>
                     <td className="py-2.5 px-3 text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
@@ -138,13 +149,22 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                       {tx.catatan || '-'}
                     </td>
                     <td className="py-2.5 px-3 text-right">
-                      <button
-                        onClick={() => handleDelete(tx)}
-                        className="p-1 rounded text-neutral-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                        title="Hapus transaksi"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={(e) => handleEdit(e, tx)}
+                          className="p-1 rounded text-neutral-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                          title="Edit transaksi"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(e, tx)}
+                          className="p-1 rounded text-neutral-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          title="Hapus transaksi"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

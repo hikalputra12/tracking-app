@@ -262,6 +262,41 @@ export async function addTransaction(tx: Omit<Transaction, 'id'> & { id?: string
   }
 }
 
+export async function updateTransaction(tx: Transaction): Promise<{ success: boolean; error?: string }> {
+  const settings = getSettings();
+  const currentTxs = getCachedTransactions();
+
+  const idx = currentTxs.findIndex(t => t.id === tx.id || (tx.rowIndex && t.rowIndex === tx.rowIndex));
+  if (idx !== -1) {
+    currentTxs[idx] = { ...currentTxs[idx], ...tx };
+    saveCachedTransactions([...currentTxs]);
+  }
+
+  if (!settings.webAppUrl) {
+    return { success: true };
+  }
+
+  try {
+    const res = await fetch(settings.webAppUrl, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'updateTransaction',
+        pin: settings.pin,
+        rowIndex: tx.rowIndex,
+        transaction: tx
+      })
+    });
+
+    const data: ApiResponse = await res.json();
+    return { success: !!data.success, error: data.error };
+  } catch (err: any) {
+    console.error('Update transaction error:', err);
+    return { success: true, error: 'Tersimpan di cache lokal' };
+  }
+}
+
 export async function deleteTransaction(id: string, rowIndex?: number): Promise<{ success: boolean; error?: string }> {
   const settings = getSettings();
   const filtered = getCachedTransactions().filter(t => t.id !== id);

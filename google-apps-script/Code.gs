@@ -258,7 +258,49 @@ function handleRequest(e) {
       });
     }
 
-    // 8. DELETE TRANSACTION
+    // 8. UPDATE TRANSACTION (EDIT DATA DI Keuangan_Transaksi)
+    if (action === "updateTransaction") {
+      var finSheet = getOrCreateFinanceSheet(ss);
+      var tx = params.transaction || params;
+      var targetId = String(tx.id || params.id || "").trim();
+      var rowIndex = parseInt(params.rowIndex || tx.rowIndex, 10);
+
+      // Cari baris jika rowIndex belum valid
+      if (!rowIndex || rowIndex < 8) {
+        var lastRow = finSheet.getLastRow();
+        if (lastRow >= 8) {
+          var ids = finSheet.getRange(8, 1, lastRow - 7, 1).getValues();
+          for (var m = 0; m < ids.length; m++) {
+            if (String(ids[m][0]).trim() === targetId) {
+              rowIndex = m + 8;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!rowIndex || rowIndex < 8) {
+        return createJsonResponse({ success: false, error: "Baris transaksi tidak ditemukan." });
+      }
+
+      var nominal = Number(tx.nominal) || 0;
+      if (tx.tanggal !== undefined) finSheet.getRange(rowIndex, 2).setValue(tx.tanggal);
+      if (tx.tipe !== undefined) finSheet.getRange(rowIndex, 3).setValue(tx.tipe);
+      if (tx.kategori !== undefined) finSheet.getRange(rowIndex, 4).setValue(tx.kategori);
+      if (tx.nominal !== undefined) finSheet.getRange(rowIndex, 5).setValue(nominal);
+      if (tx.dariAkun !== undefined) finSheet.getRange(rowIndex, 6).setValue(tx.dariAkun);
+      if (tx.keAkun !== undefined) finSheet.getRange(rowIndex, 7).setValue(tx.keAkun || "-");
+      if (tx.catatan !== undefined) finSheet.getRange(rowIndex, 8).setValue(tx.catatan);
+
+      return createJsonResponse({
+        success: true,
+        message: "Transaksi berhasil diperbarui!",
+        id: targetId,
+        rowIndex: rowIndex
+      });
+    }
+
+    // 9. DELETE TRANSACTION
     if (action === "deleteTransaction") {
       var finSheet = getOrCreateFinanceSheet(ss);
       var idToDelete = String(params.id || "").trim();

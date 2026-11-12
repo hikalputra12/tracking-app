@@ -20,6 +20,7 @@ import {
   deleteJob, 
   fetchTransactions, 
   addTransaction, 
+  updateTransaction,
   deleteTransaction 
 } from './services/api';
 
@@ -69,6 +70,7 @@ export function App() {
   // Finance modal
   const [isFinanceModalOpen, setIsFinanceModalOpen] = useState<boolean>(false);
   const [financeModalType, setFinanceModalType] = useState<TransactionType>('Pengeluaran');
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   // Apply dark mode class to root
   useEffect(() => {
@@ -169,12 +171,27 @@ export function App() {
 
   // Finance Actions
   const handleOpenQuickFinance = (type: TransactionType = 'Pengeluaran') => {
+    setSelectedTransaction(null);
     setFinanceModalType(type);
     setIsFinanceModalOpen(true);
   };
 
-  const handleSaveTransaction = async (txData: Omit<Transaction, 'id'> & { id?: string }) => {
-    await addTransaction(txData);
+  const handleSelectTransaction = (tx: Transaction) => {
+    setSelectedTransaction(tx);
+    setFinanceModalType(tx.tipe);
+    setIsFinanceModalOpen(true);
+  };
+
+  const handleSaveTransaction = async (txData: Omit<Transaction, 'id'> & { id?: string; rowIndex?: number }) => {
+    if (selectedTransaction?.id) {
+      await updateTransaction({
+        ...txData,
+        id: selectedTransaction.id,
+        rowIndex: selectedTransaction.rowIndex
+      } as Transaction);
+    } else {
+      await addTransaction(txData);
+    }
     await loadData();
   };
 
@@ -357,6 +374,7 @@ export function App() {
               {/* Transactions Table */}
               <TransactionTable
                 transactions={transactions}
+                onSelectTransaction={handleSelectTransaction}
                 onDeleteTransaction={handleDeleteTransaction}
               />
             </div>
@@ -390,7 +408,9 @@ export function App() {
         isOpen={isFinanceModalOpen}
         onClose={() => setIsFinanceModalOpen(false)}
         initialType={financeModalType}
+        transaction={selectedTransaction}
         onSave={handleSaveTransaction}
+        onDelete={handleDeleteTransaction}
       />
     </div>
   );
