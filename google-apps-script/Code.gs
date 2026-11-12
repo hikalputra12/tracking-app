@@ -5,8 +5,24 @@
  * SPREADSHEET ID: 1SuemDrT6nbkoFR2fsMhP-ebHDj3F_pcvl3Wa-xqNMLA
  */
 
-// Ganti PIN di bawah ini jika ingin PIN khusus di tingkat server, atau biarkan kosong jika validasi PIN dari frontend
-var MASTER_PIN = "123456";
+/**
+ * KEAMANAN: PIN disimpan di Script Properties (seperti .env di server)
+ * agar angka PIN rahasia Anda TIDAK PERNAH terlihat di GitHub.
+ */
+function getMasterPin() {
+  var secretPin = PropertiesService.getScriptProperties().getProperty("MASTER_PIN");
+  return secretPin ? secretPin.trim() : "123456"; // Default jika belum diatur
+}
+
+/**
+ * PANDUAN MENGATUR PIN RAHASIA:
+ * Anda bisa menjalankan fungsi ini sekali di Apps Script untuk menyimpan PIN Anda secara aman:
+ * Ganti "123456" dengan PIN 6 digit Anda, lalu pilih fungsi 'setupSecretPin' dan klik 'Run'.
+ */
+function setupSecretPin() {
+  PropertiesService.getScriptProperties().setProperty("MASTER_PIN", "123456");
+  Logger.log("PIN Rahasia berhasil disimpan secara aman di Google Cloud Script Properties!");
+}
 
 function doGet(e) {
   return handleRequest(e);
@@ -37,9 +53,10 @@ function handleRequest(e) {
 
     var action = params.action || "ping";
     var userPin = params.pin || "";
+    var masterPin = getMasterPin();
 
-    // Validasi PIN jika MASTER_PIN diset
-    if (MASTER_PIN && userPin !== MASTER_PIN) {
+    // Validasi PIN rahasia
+    if (masterPin && userPin !== masterPin) {
       return createJsonResponse({
         success: false,
         error: "PIN Keamanan Salah! Akses ditolak."
