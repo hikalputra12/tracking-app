@@ -104,7 +104,12 @@ export function App() {
   }, [isUnlocked]);
 
   // Pin Unlock handler
-  const handleUnlock = () => {
+  const handleUnlock = (verifiedPin?: string) => {
+    if (verifiedPin && verifiedPin !== settings.pin) {
+      const updated = { ...settings, pin: verifiedPin };
+      setAppSettings(updated);
+      saveSettings(updated);
+    }
     setSessionUnlocked(true);
     setIsUnlocked(true);
   };
@@ -180,7 +185,7 @@ export function App() {
 
   // If locked, render PIN screen
   if (!isUnlocked) {
-    return <PinScreen correctPin={settings.pin} onSuccess={handleUnlock} />;
+    return <PinScreen correctPin={settings.pin} webAppUrl={settings.webAppUrl} onSuccess={handleUnlock} />;
   }
 
   return (
