@@ -7,7 +7,7 @@ const AUTH_KEY = 'trackhub_auth_session';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   pin: '123456',
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbzCondqaZj9PZBCV_g9TZnMrIuFvpLlSdwg4tJaY_ldRE6D7CIBYdBJ5EH5KxsO5siS/exec',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbyJnZxOci61unmXyqRKkOGQ-Wq32cx96cRNLguznJjmuvdyFhBdfCMON_2c0iEdjpHIYw/exec',
   darkMode: false,
   spreadsheetId: '1SuemDrT6nbkoFR2fsMhP-ebHDj3F_pcvl3Wa-xqNMLA',
 };
@@ -177,7 +177,15 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
 export function getSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Auto-migrate if client has old deployment URL stored
+      if (parsed.webAppUrl && parsed.webAppUrl.includes('AKfycbzCondqaZj9PZBCV_g9TZnMrIuFvpLlSdwg4tJaY_ldRE6D7CIBYdBJ5EH5KxsO5siS')) {
+        parsed.webAppUrl = DEFAULT_SETTINGS.webAppUrl;
+        saveSettings({ ...DEFAULT_SETTINGS, ...parsed });
+      }
+      return { ...DEFAULT_SETTINGS, ...parsed };
+    }
   } catch (e) {
     console.error(e);
   }
